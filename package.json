@@ -1,0 +1,17 @@
+{
+  "name": "sol-sniper",
+  "version": "1.0.0",
+  "description": "Solana memecoin early-launch scanner with Telegram alerts",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-sqlite src/index.js"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2",
+    "node-telegram-bot-api": "^0.66.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,24 @@
+# fly.toml — Fly.io deployment configuration
+#
+# Replace `app = "sol-sniper-bot"` with whatever name `fly launch` assigns.
+# `fly launch` will overwrite parts of this file on first run; that's fine.
+
+app = "sol-sniper-bot"
+primary_region = "iad"  # Ashburn, VA — close to most Solana RPC providers
+
+[build]
+
+# Persistent SQLite storage so the "seen tokens" list survives restarts.
+[mounts]
+  source = "sniper_data"
+  destination = "/data"
+
+# This is a worker, not a web server. No public ports needed.
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "256mb"
+
+# Restart the machine if it crashes, but don't auto-scale.
+[deploy]
+  strategy = "immediate"
