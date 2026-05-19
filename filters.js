@@ -1,9 +1,11 @@
-import { CONFIG } from "./config.js";
+// Reads all thresholds from settings (DB) so they can be tweaked at runtime via Telegram menu.
+import * as settings from "./settings.js";
 
-// Returns { passed: boolean, reasons: string[], data: {...} }
-// `reasons` lists why it failed (empty if passed).
 export function evaluateToken({ pair, rug }) {
   const reasons = [];
+
+  // Snapshot settings once per call so they're consistent across checks
+  const s = settings.getAll();
 
   // ---- Age ----
   const ageMin = pair.pairCreatedAt
@@ -12,50 +14,50 @@ export function evaluateToken({ pair, rug }) {
   if (ageMin === null) {
     reasons.push("no pair creation time");
   } else {
-    if (ageMin < CONFIG.MIN_AGE_MINUTES) reasons.push(`too new (${ageMin.toFixed(1)}m)`);
-    if (ageMin > CONFIG.MAX_AGE_MINUTES) reasons.push(`too old (${ageMin.toFixed(1)}m)`);
+    if (ageMin < s.MIN_AGE_MINUTES) reasons.push(`too new (${ageMin.toFixed(1)}m)`);
+    if (ageMin > s.MAX_AGE_MINUTES) reasons.push(`too old (${ageMin.toFixed(1)}m)`);
   }
 
   // ---- Liquidity ----
   const liq = pair.liquidity?.usd || 0;
-  if (liq < CONFIG.MIN_LIQUIDITY_USD) reasons.push(`liq $${liq.toFixed(0)} < $${CONFIG.MIN_LIQUIDITY_USD}`);
+  if (liq < s.MIN_LIQUIDITY_USD) reasons.push(`liq $${liq.toFixed(0)} < $${s.MIN_LIQUIDITY_USD}`);
 
-  // ---- Market cap (DexScreener calls it fdv for tokens with full circulating supply) ----
+  // ---- Market cap ----
   const mc = pair.marketCap || pair.fdv || 0;
-  if (mc < CONFIG.MIN_MARKET_CAP_USD) reasons.push(`mc $${mc.toFixed(0)} < $${CONFIG.MIN_MARKET_CAP_USD}`);
-  if (mc > CONFIG.MAX_MARKET_CAP_USD) reasons.push(`mc $${mc.toFixed(0)} > $${CONFIG.MAX_MARKET_CAP_USD}`);
+  if (mc < s.MIN_MARKET_CAP_USD) reasons.push(`mc $${mc.toFixed(0)} < $${s.MIN_MARKET_CAP_USD}`);
+  if (mc > s.MAX_MARKET_CAP_USD) reasons.push(`mc $${mc.toFixed(0)} > $${s.MAX_MARKET_CAP_USD}`);
 
   // ---- Volume h1 ----
   const volH1 = pair.volume?.h1 || 0;
-  if (volH1 < CONFIG.MIN_VOLUME_H1_USD) reasons.push(`vol1h $${volH1.toFixed(0)} < $${CONFIG.MIN_VOLUME_H1_USD}`);
+  if (volH1 < s.MIN_VOLUME_H1_USD) reasons.push(`vol1h $${volH1.toFixed(0)} < $${s.MIN_VOLUME_H1_USD}`);
 
   // ---- Buy/sell ratio h1 ----
   const buys = pair.txns?.h1?.buys || 0;
   const sells = pair.txns?.h1?.sells || 0;
   const totalTx = buys + sells;
   const buyRatio = totalTx > 0 ? buys / totalTx : 0;
-  if (buyRatio < CONFIG.MIN_BUY_RATIO_H1) {
-    reasons.push(`buyRatio ${buyRatio.toFixed(2)} < ${CONFIG.MIN_BUY_RATIO_H1}`);
+  if (buyRatio < s.MIN_BUY_RATIO_H1) {
+    reasons.push(`buyRatio ${buyRatio.toFixed(2)} < ${s.MIN_BUY_RATIO_H1}`);
   }
 
   // ---- RugCheck-based filters ----
   if (!rug) {
     reasons.push("no rugcheck data");
   } else {
-    if (CONFIG.REQUIRE_MINT_REVOKED && !rug.mintRevoked) reasons.push("mint not revoked");
-    if (CONFIG.REQUIRE_FREEZE_REVOKED && !rug.freezeRevoked) reasons.push("freeze not revoked");
-    if (CONFIG.REQUIRE_LP_LOCKED_OR_BURNED && !rug.lpLockedOrBurned) reasons.push("LP not locked/burned");
-    if (rug.holders !== null && rug.holders < CONFIG.MIN_HOLDERS) {
-      reasons.push(`holders ${rug.holders} < ${CONFIG.MIN_HOLDERS}`);
+    if (s.REQUIRE_MINT_REVOKED === 1 && !rug.mintRevoked) reasons.push("mint not revoked");
+    if (s.REQUIRE_FREEZE_REVOKED === 1 && !rug.freezeRevoked) reasons.push("freeze not revoked");
+    if (s.REQUIRE_LP_LOCKED_OR_BURNED === 1 && !rug.lpLockedOrBurned) reasons.push("LP not locked/burned");
+    if (rug.holders !== null && rug.holders < s.MIN_HOLDERS) {
+      reasons.push(`holders ${rug.holders} < ${s.MIN_HOLDERS}`);
     }
-    if (rug.topHolderPct !== null && rug.topHolderPct > CONFIG.MAX_TOP_HOLDER_PCT) {
-      reasons.push(`top holder ${rug.topHolderPct.toFixed(1)}% > ${CONFIG.MAX_TOP_HOLDER_PCT}%`);
+    if (rug.topHolderPct !== null && rug.topHolderPct > s.MAX_TOP_HOLDER_PCT) {
+      reasons.push(`top holder ${rug.topHolderPct.toFixed(1)}% > ${s.MAX_TOP_HOLDER_PCT}%`);
     }
-    if (rug.top10Pct !== null && rug.top10Pct > CONFIG.MAX_TOP_10_HOLDERS_PCT) {
-      reasons.push(`top10 ${rug.top10Pct.toFixed(1)}% > ${CONFIG.MAX_TOP_10_HOLDERS_PCT}%`);
+    if (rug.top10Pct !== null && rug.top10Pct > s.MAX_TOP_10_HOLDERS_PCT) {
+      reasons.push(`top10 ${rug.top10Pct.toFixed(1)}% > ${s.MAX_TOP_10_HOLDERS_PCT}%`);
     }
-    if (rug.score !== null && rug.score > CONFIG.MAX_RUGCHECK_RISK_SCORE) {
-      reasons.push(`rugcheck score ${rug.score} > ${CONFIG.MAX_RUGCHECK_RISK_SCORE}`);
+    if (rug.score !== null && rug.score > s.MAX_RUGCHECK_RISK_SCORE) {
+      reasons.push(`rugcheck score ${rug.score} > ${s.MAX_RUGCHECK_RISK_SCORE}`);
     }
   }
 
