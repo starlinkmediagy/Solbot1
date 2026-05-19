@@ -1,7 +1,7 @@
 {
   "name": "sol-sniper",
-  "version": "1.0.0",
-  "description": "Solana memecoin early-launch scanner with Telegram alerts",
+  "version": "2.0.0",
+  "description": "Solana memecoin scanner with Telegram menu",
   "main": "index.js",
   "type": "module",
   "scripts": {
